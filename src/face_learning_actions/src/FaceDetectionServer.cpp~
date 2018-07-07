@@ -1,0 +1,116 @@
+#include <ros/ros.h>
+#include <std_msgs/Float32.h>
+#include <sensor_msgs/Image.h>
+#include <actionlib/server/simple_action_server.h>
+#include <face_learning_actions/FaceDetectionAction.h>
+
+class FaceDetectionAction
+{
+public:
+    
+  FaceDetectionAction(std::string name) : 
+    as_(nh_, name, false),
+    action_name_(name)
+  {
+    //register the goal and feeback callbacks
+    as_.registerGoalCallback(boost::bind(&FaceDetectionAction::goalCB, this));
+    as_.registerPreemptCallback(boost::bind(&FaceDetectionAction::preemptCB, this));
+
+    //subscribe to the data topic of interest
+    image_sub_ = nh_.subscribe<sensor_msgs::Image>( "/image_raw", 1, &FaceDetectionAction::analysisCB, this);
+
+    as_.start();
+  }
+
+  ~FaceDetectionAction(void)
+  {
+  }
+
+  void goalCB()
+  {
+    ROS_INFO_STREAM(action_name_ << " executing goalCB()");
+
+    
+    // reset helper variables
+    number_of_faces_ = 0;
+
+    // accept the new goal
+    goal_ = as_.acceptNewGoal()->detect_face;
+
+    ROS_INFO_STREAM(action_name_ << " accepted goal: " << goal_);
+ 
+  }
+
+  void preemptCB()
+  {
+    ROS_INFO("%s: Preempted", action_name_.c_str());
+    // set the action state to preempted
+    as_.setPreempted();
+  }
+
+  void analysisCB(const sensor_msgs::Image::ConstPtr& msg)
+  {
+    // make sure that the action hasn't been canceled
+    if (!as_.isActive())
+      return;
+    
+    // data_count_++;
+    // feedback_.sample = data_count_;
+    // feedback_.data = msg->data;
+    // //compute the std_dev and mean of the data 
+    // sum_ += msg->data;
+    // feedback_.mean = sum_ / data_count_;
+    // sum_sq_ += pow(msg->data, 2);
+
+    number_of_faces_++;
+    feedback_.number_of_faces=number_of_faces_;
+    as_.publishFeedback(feedback_);
+
+    // if(data_count_ > goal_) 
+    // {
+    //   result_.mean = feedback_.mean;
+    //   result_.std_dev = feedback_.std_dev;
+
+    //   if(result_.mean < 5.0)
+    //   {
+    //     ROS_INFO("%s: Aborted", action_name_.c_str());
+    //     //set the action state to aborted
+    //     as_.setAborted(result_);
+    //   }
+    //   else 
+    //   {
+    //     ROS_INFO("%s: Succeeded", action_name_.c_str());
+    //     // set the action state to succeeded
+    //     as_.setSucceeded(result_);
+    //   }
+    // } 
+  }
+
+protected:
+
+  ros::NodeHandle nh_;
+  //  ros::Rate r_;
+
+  actionlib::SimpleActionServer<face_learning_actions::FaceDetectionAction> as_;
+  std::string action_name_;
+
+
+  face_learning_actions::FaceDetectionFeedback feedback_;
+  face_learning_actions::FaceDetectionResult result_;
+  ros::Subscriber image_sub_;
+
+  bool goal_;
+  bool success_;
+  int number_of_faces_;
+  
+};
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "FaceDetectionActionServer");
+
+  FaceDetectionAction fd(ros::this_node::getName());
+  ros::spin();
+
+  return 0;
+}

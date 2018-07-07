@@ -1,0 +1,2 @@
+face_learning_actions
+-DCATKIN_DEVEL_PREFIX=/home/hanna/action_ws/devel -DCMAKE_INSTALL_PREFIX=/home/hanna/action_ws/install -G Unix Makefiles
